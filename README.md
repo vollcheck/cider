@@ -1,3 +1,7 @@
+*NOTE:* This is hacked CIDER version that allows to print words of encouragement at the beginning of REPL.
+
+-----------
+
 <p align="center">
   <img src="https://raw.github.com/clojure-emacs/cider/master/logo/cider-logo-w640.png" alt="CIDER Logo"/>
 </p>

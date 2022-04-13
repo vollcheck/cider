@@ -162,10 +162,26 @@ Will be evaluated with bindings for set!-able vars in place."
   :type '(list string)
   :package-version '(cider . "0.21.0"))
 
+(defcustom cider-repl--insert-banner-p t
+  "When non-nil standard info banner will be displayed on REPL start."
+  :type 'boolean
+  :package-version '(cider . "1.3.0"))
+
 (defcustom cider-repl-display-help-banner t
   "When non-nil a bit of help text will be displayed on REPL start."
   :type 'boolean
   :package-version '(cider . "0.11.0"))
+
+(defcustom cider-repl--insert-startup-commands-p t
+  "When non-nil startup commands will be listed on REPL start."
+  :type 'boolean
+  :package-version '(cider . "1.3.0"))
+
+(defcustom cider-repl--insert-words-of-encouragement-p nil
+  "When non-nil words of encouragement will be displayed on REPL start."
+  :type 'boolean
+  :package-version '(cider . "1.3.0"))
+
 
 
 ;;;; REPL buffer local variables
@@ -281,6 +297,39 @@ Run CALLBACK once the evaluation is complete."
        (map-pairs)
        (seq-mapcat #'identity)))))
 
+;;; ------------------------ Words of encouragement ------------------------
+;; Stolen & adapted from https://github.com/joaotavora/sly/blob/master/sly.el#L1470
+
+(defvar cider-repl--words-of-encouragement
+  `("Let the hacking commence!"
+    "Hacks and glory await!"
+    "Hack and be merry!"
+    "Your hacking starts... NOW!"
+    "May the source be with you!"
+    "Take this REPL, brother, and may it serve you well."
+    "Lemonodor-fame is but a hack away!"
+    "Are we consing yet?"
+    "Hey, this could be the start of a beautiful program."
+    "Scientifically-proven optimal words of hackerish encouragement."))
+
+(defun cider-repl--random-words-of-encouragement ()
+  "Return a string of hackerish encouragement."
+  (eval (concat
+         (nth (random (length cider-repl--words-of-encouragement))
+              cider-repl--words-of-encouragement)
+         "\n\n")
+        t))
+
+(defun cider-repl--insert-words-of-encouragement ()
+  "Insert the words of encouragement in the current REPL buffer."
+  (when cider-repl--insert-words-of-encouragement-p
+    (insert-before-markers
+     (propertize  ;; TODO: Make things prettier!
+      (cider-repl--random-words-of-encouragement) 'font-lock-face 'font-lock-comment-face))))
+
+;;; ------------------------ Words of encouragement ------------------------
+
+
 (defun cider-repl-init (buffer &optional callback)
   "Initialize the REPL in BUFFER.
 BUFFER must be a REPL buffer with `cider-repl-mode' and a running
@@ -301,7 +350,9 @@ fully initialized."
     ((pred identity) (pop-to-buffer buffer)))
   (with-current-buffer buffer
     (cider-repl--insert-banner)
-    (cider-repl--insert-startup-commands)
+    (when cider-repl--insert-startup-commands-p
+      (cider-repl--insert-startup-commands))
+    (cider-repl--insert-words-of-encouragement)
     (when-let* ((window (get-buffer-window buffer t)))
       (with-selected-window window
         (recenter (- -1 scroll-margin))))
@@ -310,11 +361,12 @@ fully initialized."
 
 (defun cider-repl--insert-banner ()
   "Insert the banner in the current REPL buffer."
-  (insert-before-markers
-   (propertize (cider-repl--banner) 'font-lock-face 'font-lock-comment-face))
-  (when cider-repl-display-help-banner
+  (when cider-repl--insert-banner-p
     (insert-before-markers
-     (propertize (cider-repl--help-banner) 'font-lock-face 'font-lock-comment-face))))
+     (propertize (cider-repl--banner) 'font-lock-face 'font-lock-comment-face))
+    (when cider-repl-display-help-banner
+      (insert-before-markers
+       (propertize (cider-repl--help-banner) 'font-lock-face 'font-lock-comment-face)))))
 
 (defun cider-repl--insert-startup-commands ()
   "Insert the values from params specified in PARAM-TUPLES.
@@ -342,12 +394,14 @@ present."
           (emit-comment (concat "ClojureScript REPL init form: " cljs-init-form)))
         (emit-comment "")))))
 
+
 (defun cider-repl--banner ()
   "Generate the welcome REPL buffer banner."
   (cond
    ((cider--clojure-version) (cider-repl--clojure-banner))
    ((cider--babashka-version) (cider-repl--babashka-banner))
    (t (cider-repl--basic-banner))))
+
 
 (defun cider-repl--clojure-banner ()
   "Generate the welcome REPL buffer banner for Clojure(Script)."
